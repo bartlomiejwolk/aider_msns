@@ -453,6 +453,8 @@ class Coder:
         if not self.repo:
             self.root = utils.find_common_root(self.abs_fnames)
 
+        os.chdir(str(self.root))
+
         if read_only_fnames:
             self.abs_read_only_fnames = set()
             for fname in read_only_fnames:

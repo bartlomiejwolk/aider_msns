@@ -83,6 +83,57 @@ class Commands:
         # Store the original read-only filenames provided via args.read
         self.original_read_only_fnames = set(original_read_only_fnames or [])
 
+    def cmd_cd(self, args):
+        """Change working directory (tab-completable)
+        Usage:
+          /cd [path]    - Change directory (supports tab completion)
+          /cd ../       - Move up one level  
+          /cd /         - Return to project root
+        """
+        args = args.strip()
+        
+        if not args:
+            cwd_rel_path = os.path.relpath(os.getcwd(), self.coder.root)
+            self.io.tool_output(f"Current directory: {cwd_rel_path}")
+            return
+            
+        try:
+            if args == "/":
+                new_path = Path(self.coder.root)
+            else:
+                new_path = (Path(os.getcwd()) / args).resolve()
+                
+                if not str(new_path).startswith(str(self.coder.root)):
+                    raise ValueError("Cannot leave project root")
+                    
+                if not new_path.is_dir():
+                    raise FileNotFoundError(f"Directory not found")
+                    
+            # Update working directory
+            os.chdir(str(new_path))
+            cwd_rel_path = os.path.relpath(new_path, self.coder.root)
+            self.io.tool_output(f"Changed directory to: {cwd_rel_path}")
+        except Exception as e:
+            self.io.tool_error(f"Error: {str(e)}")
+
+    def completions_cd(self):
+        """Generate directory completions for /cd"""
+        try:
+            current_dir = os.getcwd()
+            completions = []
+            
+            if current_dir != self.coder.root:
+                completions.append("../")
+                
+            for item in sorted(Path(current_dir).iterdir()):
+                if item.is_dir():
+                    completions.append(f"{item.name}/")
+                    
+            completions.append("/")
+            return completions
+        except Exception:
+            return []
+
     def cmd_model(self, args):
         "Switch the Main Model to a new LLM"
 
