@@ -83,6 +83,43 @@ class Commands:
         # Store the original read-only filenames provided via args.read
         self.original_read_only_fnames = set(original_read_only_fnames or [])
 
+    def cmd_list_files(self, args):
+        """List files/directories from root directory (non-recursively) as chat text"""
+        if not self.coder.root:
+            self.io.tool_error("No root directory found")
+            return
+
+        try:
+            # Get all entries in root dir (non-recursively)
+            entries = os.listdir(self.coder.root)
+            if not entries:
+                self.io.tool_output(f"No files or directories found in: {self.coder.root}")
+                return
+
+            # Separate directories and files
+            dirs = []
+            files = []
+            for entry in sorted(entries):
+                full_path = os.path.join(self.coder.root, entry)
+                if os.path.isdir(full_path):
+                    dirs.append(entry + "/")
+                else:
+                    files.append(entry)
+
+            # Build output with directories first, then files (no empty line between)
+            output = []
+            if dirs:
+                output.extend(f"  {d}" for d in dirs)
+            if files:
+                output.extend(f"  {f}" for f in files)
+
+            # Add to chat buffer but don't send yet
+            self.io.placeholder = "\n".join(output)
+            self.io.tool_output("\nDirectory listing prepared - press Enter to send to LLM", log_only=True)
+
+        except Exception as e:
+            self.io.tool_error(f"Error listing {self.coder.root}: {str(e)}")
+
     def cmd_model(self, args):
         "Switch the Main Model to a new LLM"
 
