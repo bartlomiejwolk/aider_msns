@@ -209,8 +209,8 @@ class AutoCompleter(Completer):
 
         last_word = words[-1]
 
-        # Only provide completions if the user has typed at least 3 characters
-        if len(last_word) < 3:
+        # Only provide completions if the user has typed at least 1 character
+        if len(last_word) < 1:
             return
 
         completions = []
