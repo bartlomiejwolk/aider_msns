@@ -541,7 +541,13 @@ class InputOutput:
             prompt_prefix += edit_format
         if self.multiline_mode:
             prompt_prefix += (" " if edit_format else "") + "multi"
-        prompt_prefix += "> "
+        
+        cwd_rel_path = os.path.relpath(os.getcwd(), root)
+        
+        if cwd_rel_path != ".":
+            prompt_prefix = f"{cwd_rel_path} ∎ {prompt_prefix}> "
+        else:
+            prompt_prefix += "> "
 
         show += prompt_prefix
         self.prompt_prefix = prompt_prefix
