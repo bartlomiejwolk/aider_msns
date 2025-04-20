@@ -1094,43 +1094,41 @@ class Commands:
         self.cmd_exit(args)
 
     def cmd_ls(self, args):
-        "List all known files and indicate which are included in the chat session"
-
-        files = self.coder.get_all_relative_files()
-
-        other_files = []
-        chat_files = []
-        read_only_files = []
-        for file in files:
-            abs_file_path = self.coder.abs_root_path(file)
-            if abs_file_path in self.coder.abs_fnames:
-                chat_files.append(file)
+        "List all files and folders in the current working directory (directories first)"
+        
+        # Get current working directory relative to root
+        cwd = os.getcwd()
+        cwd_rel = os.path.relpath(cwd, self.coder.root)
+        
+        # Get all entries in CWD, separating directories and files
+        dirs = []
+        files = []
+        for entry in sorted(os.listdir(cwd)):
+            full_path = os.path.join(cwd, entry)
+            rel_path = os.path.join(cwd_rel, entry)
+            if os.path.isdir(full_path):
+                dirs.append((entry, rel_path))
             else:
-                other_files.append(file)
+                files.append((entry, rel_path))
 
-        # Add read-only files
-        for abs_file_path in self.coder.abs_read_only_fnames:
-            rel_file_path = self.coder.get_rel_fname(abs_file_path)
-            read_only_files.append(rel_file_path)
-
-        if not chat_files and not other_files and not read_only_files:
-            self.io.tool_output("\nNo files in chat, git repo, or read-only list.")
+        if not dirs and not files:
+            self.io.tool_output(f"No files or folders in current directory: {cwd_rel}")
             return
 
-        if other_files:
-            self.io.tool_output("Repo files not in the chat:\n")
-        for file in other_files:
-            self.io.tool_output(f"  {file}")
+        self.io.tool_output(f"Contents of {cwd_rel}")
+        
+        # List directories first
+        for entry, rel_path in dirs:
+            self.io.tool_output(f"  {rel_path}/")  # Folders with trailing slash
+            
+        # Then list files
+        for entry, rel_path in files:
+            self.io.tool_output(f"  {rel_path}")  # Regular files
 
-        if read_only_files:
-            self.io.tool_output("\nRead-only files:\n")
-        for file in read_only_files:
-            self.io.tool_output(f"  {file}")
-
-        if chat_files:
-            self.io.tool_output("\nFiles in chat:\n")
-        for file in chat_files:
-            self.io.tool_output(f"  {file}")
+        # Show summary count
+        num_dirs = len(dirs)
+        num_files = len(files)
+        self.io.tool_output(f"\n{num_dirs} director{'y' if num_dirs == 1 else 'ies'}, {num_files} file{'s' if num_files != 1 else ''}")
 
     def basic_help(self):
         commands = sorted(self.get_commands())
