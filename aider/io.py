@@ -179,9 +179,18 @@ class AutoCompleter(Completer):
         if candidates is None:
             return
 
-        candidates = [word for word in candidates if partial in word.lower()]
-        for candidate in sorted(candidates):
-            yield Completion(candidate, start_position=-len(words[-1]))
+        filtered = []
+        for candidate in candidates:
+            if isinstance(candidate, tuple):
+                display_val, insertion_val = candidate
+                if partial in display_val.lower():
+                    filtered.append((display_val, insertion_val))
+            else:
+                if partial in candidate.lower():
+                    filtered.append((candidate, candidate))  # Normalize to tuple
+
+        for display_val, insertion_val in sorted(filtered, key=lambda x: x[0]):
+            yield Completion(insertion_val, start_position=-len(words[-1]), display=display_val)
 
     def get_completions(self, document, complete_event):
         self.tokenize()

@@ -776,12 +776,13 @@ class Commands:
         # Add completions from the 'add' command
         add_completions = self.completions_add()
         for completion in add_completions:
-            if after_command in completion:
+            display_val, insertion_val = completion
+            if after_command in display_val:
                 all_completions.append(
                     Completion(
-                        text=completion,
+                        text=insertion_val,
                         start_position=adjusted_start_position,
-                        display=completion,
+                        display=display_val,
                     )
                 )
 
@@ -793,10 +794,15 @@ class Commands:
             yield completion
 
     def completions_add(self):
+        import os
         files = set(self.coder.get_all_relative_files())
         files = files - set(self.coder.get_inchat_relative_files())
-        files = [self.quote_fname(fn) for fn in files]
-        return files
+        completions = []
+        for fn in files:
+            insertion = self.quote_fname(fn)
+            display = os.path.basename(fn)
+            completions.append((display, insertion))
+        return completions
 
     def glob_filtered_to_repo(self, pattern):
         if not pattern.strip():
