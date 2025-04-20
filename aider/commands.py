@@ -93,8 +93,10 @@ class Commands:
         args = args.strip()
         
         if not args:
-            cwd_rel_path = os.path.relpath(os.getcwd(), self.coder.root)
-            self.io.tool_output(f"Current directory: {cwd_rel_path}")
+            cwd_abs_path = os.getcwd()
+            cwd_rel_path = os.path.relpath(cwd_abs_path, self.coder.root)
+            self.io.tool_output(f"Root dir: {self.coder.root}")
+            self.io.tool_output(f"Relative CWD: {cwd_rel_path}")
             return
             
         try:
@@ -111,8 +113,10 @@ class Commands:
                     
             # Update working directory
             os.chdir(str(new_path))
+            cwd_abs_path = os.getcwd()
             cwd_rel_path = os.path.relpath(new_path, self.coder.root)
-            self.io.tool_output(f"Changed directory to: {cwd_rel_path}")
+            self.io.tool_output(f"Root dir: {self.coder.root}")
+            self.io.tool_output(f"Changed directory to: .\\{cwd_rel_path}")
         except Exception as e:
             self.io.tool_error(f"Error: {str(e)}")
 
