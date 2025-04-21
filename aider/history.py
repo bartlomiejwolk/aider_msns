@@ -16,6 +16,16 @@ class ChatSummary:
         self.token_count = self.models[0].token_count
         self.io = io
 
+    def append_summary_to_history(self, summary_text):
+        """Save summary text to .aider.summary.md file with timestamp"""
+        try:
+            from datetime import datetime
+            timestamp = datetime.now().isoformat()
+            with open(".aider.summary.md", "a", encoding="utf-8") as f:
+                f.write(f"# {timestamp}\n{summary_text}\n\n")
+        except Exception as e:
+            self.io.tool_warning(f"Failed to update summary history: {e}")
+
     def too_big(self, messages):
         sized = self.tokenize(messages)
         total = sum(tokens for tokens, _msg in sized)
@@ -131,6 +141,8 @@ class ChatSummary:
                 summary = model.simple_send_with_retries(summarize_messages)
                 if summary is not None:
                     summary = prompts.summary_prefix + summary
+                    # Save the summary to history file
+                    self.append_summary_to_history(summary)
                     return [dict(role="user", content=summary)]
             except Exception as e:
                 print(f"Summarization failed for model {model.name}: {str(e)}")
