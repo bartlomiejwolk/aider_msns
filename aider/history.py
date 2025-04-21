@@ -5,12 +5,16 @@ from aider.dump import dump  # noqa: F401
 
 
 class ChatSummary:
-    def __init__(self, models=None, max_tokens=1024):
+    def __init__(self, models, io, max_tokens):
         if not models:
-            raise ValueError("At least one model must be provided")
+            raise ValueError("At least one model must be provided") 
+        if not io:
+            raise ValueError("IO object must be provided")
         self.models = models if isinstance(models, list) else [models]
         self.max_tokens = max_tokens
+        io.tool_output(f"Summarizer initialized with max_tokens={max_tokens}")
         self.token_count = self.models[0].token_count
+        self.io = io
 
     def too_big(self, messages):
         sized = self.tokenize(messages)
@@ -31,17 +35,23 @@ class ChatSummary:
         return messages
 
     def summarize_real(self, messages, depth=0):
-        if not self.models:
-            raise ValueError("No models available for summarization")
-
+        self.io.tool_output(f"Starting summarization (depth={depth})")
+        
         sized = self.tokenize(messages)
-        total = sum(tokens for tokens, _msg in sized)
-        if total <= self.max_tokens and depth == 0:
+        total_tokens = sum(tokens for tokens, _msg in sized)
+        self.io.tool_output(f"Current history size: {len(messages)} messages, {total_tokens} tokens")
+        
+        if total_tokens <= self.max_tokens and depth == 0:
+            self.io.tool_output("No summarization needed - history is within token limit")
             return messages
 
         min_split = 4
         if len(messages) <= min_split or depth > 3:
-            return self.summarize_all(messages)
+            self.io.tool_output("Summarizing entire history (small message count or max depth reached)")
+            summarized = self.summarize_all(messages)
+            summarized_tokens = self.token_count(summarized)
+            self.io.tool_output(f"Summarized to {summarized_tokens} tokens")
+            return summarized
 
         tail_tokens = 0
         split_index = len(messages)
@@ -61,6 +71,7 @@ class ChatSummary:
             split_index -= 1
 
         if split_index <= min_split:
+            self.io.tool_output("Summarizing entire history (split point too small)")
             return self.summarize_all(messages)
 
         head = messages[:split_index]
@@ -85,14 +96,18 @@ class ChatSummary:
         keep.reverse()
 
         summary = self.summarize_all(keep)
-
-        tail_tokens = sum(tokens for tokens, msg in sized[split_index:])
         summary_tokens = self.token_count(summary)
+        tail_tokens = sum(tokens for tokens, msg in sized[split_index:])
+
+        self.io.tool_output(f"Partial summary: {summary_tokens} tokens")
+        self.io.tool_output(f"Remaining tail: {tail_tokens} tokens")
 
         result = summary + tail
         if summary_tokens + tail_tokens < self.max_tokens:
+            self.io.tool_output(f"Combined size acceptable: {summary_tokens + tail_tokens} tokens")
             return result
 
+        self.io.tool_output("Recursing with combined messages")
         return self.summarize_real(result, depth + 1)
 
     def summarize_all(self, messages):
