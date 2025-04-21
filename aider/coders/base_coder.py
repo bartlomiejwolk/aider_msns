@@ -487,9 +487,12 @@ class Coder:
                 refresh=map_refresh,
             )
 
+        max_tokens = self.main_model.max_chat_history_tokens
+        self.io.tool_output(f"Creating summarizer with max_tokens={max_tokens}")
         self.summarizer = summarizer or ChatSummary(
-            [self.main_model.weak_model, self.main_model],
-            self.main_model.max_chat_history_tokens,
+            models=[self.main_model.weak_model, self.main_model],
+            io=self.io,
+            max_tokens=max_tokens
         )
 
         self.summarizer_thread = None
@@ -968,26 +971,40 @@ class Coder:
         self.last_keyboard_interrupt = now
 
     def summarize_start(self):
+        if not self.done_messages:
+            return
+
+        sized = self.summarizer.tokenize(self.done_messages)
+        total_tokens = sum(tokens for tokens, _msg in sized)
+        
+        self.io.tool_output(f"Starting chat history summarization check...")
+        self.io.tool_output(f"Current history: {len(self.done_messages)} messages, {total_tokens} tokens")
+        self.io.tool_output(f"Summarization threshold: {self.summarizer.max_tokens} tokens")
+
         if not self.summarizer.too_big(self.done_messages):
+            self.io.tool_output("Skipping summarization - current history size is below threshold")
             return
 
         self.summarize_end()
 
-        if self.verbose:
-            self.io.tool_output("Starting to summarize chat history.")
-
+        self.io.tool_output("Starting summarization thread...")
         self.summarizer_thread = threading.Thread(target=self.summarize_worker)
         self.summarizer_thread.start()
 
     def summarize_worker(self):
         self.summarizing_messages = list(self.done_messages)
         try:
+            sized = self.summarizer.tokenize(self.summarizing_messages)
+            total_tokens = sum(tokens for tokens, _msg in sized)
+            self.io.tool_output(f"Summarizing {len(self.summarizing_messages)} messages ({total_tokens} tokens)")
+            
             self.summarized_done_messages = self.summarizer.summarize(self.summarizing_messages)
+            
+            sized = self.summarizer.tokenize(self.summarized_done_messages)
+            total_tokens = sum(tokens for tokens, _msg in sized)
+            self.io.tool_output(f"Summarization complete: {len(self.summarized_done_messages)} messages ({total_tokens} tokens)")
         except ValueError as err:
-            self.io.tool_warning(err.args[0])
-
-        if self.verbose:
-            self.io.tool_output("Finished summarizing chat history.")
+            self.io.tool_error(f"Summarization failed: {err.args[0]}")
 
     def summarize_end(self):
         if self.summarizer_thread is None:
@@ -1001,17 +1018,16 @@ class Coder:
         self.summarizing_messages = None
         self.summarized_done_messages = []
 
-    def move_back_cur_messages(self, message):
+    def move_back_cur_messages(self):
+        self.io.tool_output("Moving current messages to history...")
+        self.io.tool_output(f"Current messages count: {len(self.cur_messages)}")
+        self.io.tool_output(f"Done messages count before move: {len(self.done_messages)}")
+
         self.done_messages += self.cur_messages
         self.summarize_start()
-
-        # TODO check for impact on image messages
-        if message:
-            self.done_messages += [
-                dict(role="user", content=message),
-                dict(role="assistant", content="Ok."),
-            ]
+        
         self.cur_messages = []
+        self.io.tool_output(f"Done messages count after move: {len(self.done_messages)}")
 
     def get_user_language(self):
         if self.chat_language:
@@ -1323,6 +1339,11 @@ class Coder:
 
     def send_message(self, inp):
         self.event("message_send_starting")
+        self.io.tool_output(
+            f"Sending message to LLM (model: {self.main_model.name}, "
+            f"edit format: {self.edit_format})"
+        )
+        self.io.tool_output(f"Message content preview: {inp[:100]}...")
 
         # Notify IO that LLM processing is starting
         self.io.llm_started()
@@ -1330,21 +1351,29 @@ class Coder:
         self.cur_messages += [
             dict(role="user", content=inp),
         ]
+        self.io.tool_output(f"Current messages count: {len(self.cur_messages)}")
 
         chunks = self.format_messages()
         messages = chunks.all_messages()
+        self.io.tool_output(f"Total messages after formatting: {len(messages)}")
+        
         if not self.check_tokens(messages):
+            self.io.tool_output("Message sending aborted due to token limit")
             return
+        
         self.warm_cache(chunks)
 
         if self.verbose:
             utils.show_messages(messages, functions=self.functions)
+            self.io.tool_output(f"Using functions: {bool(self.functions)}")
 
         self.multi_response_content = ""
         if self.show_pretty() and self.stream:
             self.mdstream = self.io.get_assistant_mdstream()
+            self.io.tool_output("Using pretty streaming output")
         else:
             self.mdstream = None
+            self.io.tool_output("Using plain output")
 
         retry_delay = 0.125
 
@@ -1488,7 +1517,7 @@ class Coder:
             if not saved_message and hasattr(self.gpt_prompts, "files_content_gpt_edits_no_repo"):
                 saved_message = self.gpt_prompts.files_content_gpt_edits_no_repo
 
-            self.move_back_cur_messages(saved_message)
+        self.move_back_cur_messages()
 
         if self.reflected_message:
             return
