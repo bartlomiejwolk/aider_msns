@@ -83,6 +83,61 @@ class Commands:
         # Store the original read-only filenames provided via args.read
         self.original_read_only_fnames = set(original_read_only_fnames or [])
 
+    def cmd_cd(self, args):
+        """Change working directory (tab-completable)
+        Usage:
+          /cd [path]    - Change directory (supports tab completion)
+          /cd ../       - Move up one level  
+          /cd /         - Return to project root
+        """
+        args = args.strip()
+        
+        if not args:
+            cwd_abs_path = os.getcwd()
+            cwd_rel_path = os.path.relpath(cwd_abs_path, self.coder.root)
+            self.io.tool_output(f"Root dir: {self.coder.root}")
+            self.io.tool_output(f"Relative CWD: {cwd_rel_path}")
+            return
+            
+        try:
+            if args == "/":
+                new_path = Path(self.coder.root)
+            else:
+                new_path = (Path(os.getcwd()) / args).resolve()
+                
+                if not str(new_path).startswith(str(self.coder.root)):
+                    raise ValueError("Cannot leave project root")
+                    
+                if not new_path.is_dir():
+                    raise FileNotFoundError(f"Directory not found")
+                    
+            # Update working directory
+            os.chdir(str(new_path))
+            cwd_abs_path = os.getcwd()
+            cwd_rel_path = os.path.relpath(new_path, self.coder.root)
+            self.io.tool_output(f"Root dir: {self.coder.root}")
+            self.io.tool_output(f"Changed directory to: .\\{cwd_rel_path}")
+        except Exception as e:
+            self.io.tool_error(f"Error: {str(e)}")
+
+    def completions_cd(self):
+        """Generate directory completions for /cd"""
+        try:
+            current_dir = os.getcwd()
+            completions = []
+            
+            if current_dir != self.coder.root:
+                completions.append("../")
+                
+            for item in sorted(Path(current_dir).iterdir()):
+                if item.is_dir():
+                    completions.append(f"{item.name}/")
+                    
+            completions.append("/")
+            return completions
+        except Exception:
+            return []
+
     def cmd_model(self, args):
         "Switch the Main Model to a new LLM"
 
@@ -725,12 +780,13 @@ class Commands:
         # Add completions from the 'add' command
         add_completions = self.completions_add()
         for completion in add_completions:
-            if after_command in completion:
+            display_val, insertion_val = completion
+            if after_command in display_val:
                 all_completions.append(
                     Completion(
-                        text=completion,
+                        text=insertion_val,
                         start_position=adjusted_start_position,
-                        display=completion,
+                        display=display_val,
                     )
                 )
 
@@ -742,10 +798,15 @@ class Commands:
             yield completion
 
     def completions_add(self):
+        import os
         files = set(self.coder.get_all_relative_files())
         files = files - set(self.coder.get_inchat_relative_files())
-        files = [self.quote_fname(fn) for fn in files]
-        return files
+        completions = []
+        for fn in files:
+            insertion = self.quote_fname(fn)
+            display = os.path.basename(fn)
+            completions.append((display, insertion))
+        return completions
 
     def glob_filtered_to_repo(self, pattern):
         if not pattern.strip():
@@ -1033,43 +1094,41 @@ class Commands:
         self.cmd_exit(args)
 
     def cmd_ls(self, args):
-        "List all known files and indicate which are included in the chat session"
-
-        files = self.coder.get_all_relative_files()
-
-        other_files = []
-        chat_files = []
-        read_only_files = []
-        for file in files:
-            abs_file_path = self.coder.abs_root_path(file)
-            if abs_file_path in self.coder.abs_fnames:
-                chat_files.append(file)
+        "List all files and folders in the current working directory (directories first)"
+        
+        # Get current working directory relative to root
+        cwd = os.getcwd()
+        cwd_rel = os.path.relpath(cwd, self.coder.root)
+        
+        # Get all entries in CWD, separating directories and files
+        dirs = []
+        files = []
+        for entry in sorted(os.listdir(cwd)):
+            full_path = os.path.join(cwd, entry)
+            rel_path = os.path.join(cwd_rel, entry)
+            if os.path.isdir(full_path):
+                dirs.append((entry, rel_path))
             else:
-                other_files.append(file)
+                files.append((entry, rel_path))
 
-        # Add read-only files
-        for abs_file_path in self.coder.abs_read_only_fnames:
-            rel_file_path = self.coder.get_rel_fname(abs_file_path)
-            read_only_files.append(rel_file_path)
-
-        if not chat_files and not other_files and not read_only_files:
-            self.io.tool_output("\nNo files in chat, git repo, or read-only list.")
+        if not dirs and not files:
+            self.io.tool_output(f"No files or folders in current directory: {cwd_rel}")
             return
 
-        if other_files:
-            self.io.tool_output("Repo files not in the chat:\n")
-        for file in other_files:
-            self.io.tool_output(f"  {file}")
+        self.io.tool_output(f"Contents of {cwd_rel}")
+        
+        # List directories first
+        for entry, rel_path in dirs:
+            self.io.tool_output(f"  {rel_path}/")  # Folders with trailing slash
+            
+        # Then list files
+        for entry, rel_path in files:
+            self.io.tool_output(f"  {rel_path}")  # Regular files
 
-        if read_only_files:
-            self.io.tool_output("\nRead-only files:\n")
-        for file in read_only_files:
-            self.io.tool_output(f"  {file}")
-
-        if chat_files:
-            self.io.tool_output("\nFiles in chat:\n")
-        for file in chat_files:
-            self.io.tool_output(f"  {file}")
+        # Show summary count
+        num_dirs = len(dirs)
+        num_files = len(files)
+        self.io.tool_output(f"\n{num_dirs} director{'y' if num_dirs == 1 else 'ies'}, {num_files} file{'s' if num_files != 1 else ''}")
 
     def basic_help(self):
         commands = sorted(self.get_commands())

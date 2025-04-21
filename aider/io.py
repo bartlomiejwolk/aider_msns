@@ -179,9 +179,18 @@ class AutoCompleter(Completer):
         if candidates is None:
             return
 
-        candidates = [word for word in candidates if partial in word.lower()]
-        for candidate in sorted(candidates):
-            yield Completion(candidate, start_position=-len(words[-1]))
+        filtered = []
+        for candidate in candidates:
+            if isinstance(candidate, tuple):
+                display_val, insertion_val = candidate
+                if partial in display_val.lower():
+                    filtered.append((display_val, insertion_val))
+            else:
+                if partial in candidate.lower():
+                    filtered.append((candidate, candidate))  # Normalize to tuple
+
+        for display_val, insertion_val in sorted(filtered, key=lambda x: x[0]):
+            yield Completion(insertion_val, start_position=-len(words[-1]), display=display_val)
 
     def get_completions(self, document, complete_event):
         self.tokenize()
@@ -209,8 +218,8 @@ class AutoCompleter(Completer):
 
         last_word = words[-1]
 
-        # Only provide completions if the user has typed at least 3 characters
-        if len(last_word) < 3:
+        # Only provide completions if the user has typed at least 1 character
+        if len(last_word) < 1:
             return
 
         completions = []
@@ -541,7 +550,13 @@ class InputOutput:
             prompt_prefix += edit_format
         if self.multiline_mode:
             prompt_prefix += (" " if edit_format else "") + "multi"
-        prompt_prefix += "> "
+        
+        cwd_rel_path = os.path.relpath(os.getcwd(), root)
+        
+        if cwd_rel_path != ".":
+            prompt_prefix = f"{cwd_rel_path} ∎ {prompt_prefix}> "
+        else:
+            prompt_prefix += "> "
 
         show += prompt_prefix
         self.prompt_prefix = prompt_prefix
@@ -651,7 +666,7 @@ class InputOutput:
                         show,
                         default=default,
                         completer=completer_instance,
-                        reserve_space_for_menu=4,
+                        reserve_space_for_menu=32,
                         complete_style=CompleteStyle.MULTI_COLUMN,
                         style=style,
                         key_bindings=kb,
