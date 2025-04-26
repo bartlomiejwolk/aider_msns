@@ -150,6 +150,7 @@ class Commands:
             [
                 ("help", "Get help about using aider (usage, config, troubleshoot)."),
                 ("ask", "Ask questions about your code without making any changes."),
+                ("explore", "Explore the code base without making changes (same as ask mode)."),
                 ("code", "Ask for changes to your code (using the best edit format)."),
                 (
                     "architect",
@@ -1153,6 +1154,10 @@ class Commands:
     def cmd_ask(self, args):
         """Ask questions about the code base without editing any files. If no prompt provided, switches to ask mode."""  # noqa
         return self._generic_chat_command(args, "ask")
+
+    def cmd_explore(self, args):
+        """Explore the code base without editing any files. If no prompt provided, switches to explore mode."""  # noqa
+        return self._generic_chat_command(args, "explore")
 
     def cmd_code(self, args):
         """Ask for changes to your code. If no prompt provided, switches to code mode."""  # noqa
