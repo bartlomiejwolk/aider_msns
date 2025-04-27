@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-from aider import prompts
 from aider.coders.base_coder import Coder
-from aider.coders.ask_prompts import AskPrompts
+from .explore_prompts import ExplorePrompts
 
 
 class ExploreCoder(Coder):
@@ -10,7 +9,7 @@ class ExploreCoder(Coder):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.gpt_prompts = AskPrompts()
+        self.gpt_prompts = ExplorePrompts()
 
     def get_edits(self, mode="update"):
         return []
