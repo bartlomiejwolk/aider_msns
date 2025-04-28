@@ -15,7 +15,7 @@ class ExploreCoder(Coder):
         return []
 
     def apply_edits(self, edits):
-        return
+        return []
 
     def apply_edits_dry_run(self, edits):
-        return
+        return []
