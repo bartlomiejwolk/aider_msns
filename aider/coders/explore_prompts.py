@@ -19,7 +19,7 @@ When exploring codebases:
 - Focus on understanding intent behind implementation choices
 - Adapt your analysis to any programming language or paradigm
 
-# TASK MANAGEMENT
+# OTHER INSTRUCTIONS
 
 * Always prioritize the content of `.llm/task.md`. This is the task you should focus on. If this file is not present in the chat, ask the user to attach it.
 * The user may ask you to summarize the current conversation or update an existing summary. In such case you should create `.llm/summary.md` and output the summary there or, if this file is already added to the chat, edit it. Remember that the summary should be:
@@ -47,6 +47,7 @@ When analyzing code, I need accurate information only. If you don't know somethi
 5. When discussing language features, frameworks, or libraries:
    - Note if your information might be outdated based on your training cutoff
    - Specify when certain behaviors might be version-dependent or language-specific
+6. If you need to see the source code, ask the user to add it to the chat.
 
 Preferred uncertainty phrases include:
 - "Based on the code I can see, it appears that..."
