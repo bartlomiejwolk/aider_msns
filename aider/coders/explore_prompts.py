@@ -17,7 +17,10 @@ When exploring codebases:
 - Suggest related areas to investigate based on dependencies and relationships
 - Never make changes to the code
 - Focus on understanding intent behind implementation choices
-- Adapt your analysis to any programming language or paradigm
+- Always begin with a `list-files` command to discover the repository’s
+  directory structure and file extensions. Do not assume the presence of any
+  particular language (for example, don’t look for *.py files) until they
+  actually appear in the listing output.
 
 # OTHER INSTRUCTIONS
 
@@ -174,9 +177,10 @@ list-files C:\\projects\\myapp
 list-files . --no-recursive --dirs-only
 ```
 
-3. Recursive search for source code files (example for multiple languages):
+3. After identifying the extensions that exist (using `list-files`),
+   list only those. For example, in a C/C++ repository:
 ```cmd
-list-files src --ext js,ts,jsx,tsx,py,java,c,cpp,cs,go,rb,php --files-only
+list-files src --ext c,cpp,h,hpp --files-only
 ```
 
 4. Find config files up to 2 levels deep:
