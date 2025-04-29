@@ -1563,6 +1563,37 @@ class Commands:
         announcements = "\n".join(self.coder.get_announcements())
         self.io.tool_output(announcements)
 
+    def cmd_summarize(self, args):
+        "Trigger summarization of chat history to reduce token usage"
+        if not self.coder.done_messages and not self.coder.cur_messages:
+            self.io.tool_output("No chat history to summarize yet.")
+            return
+
+        # Calculate tokens before summarization
+        all_messages = self.coder.done_messages + self.coder.cur_messages
+        before_tokens = self.coder.main_model.token_count(all_messages)
+        
+        self.io.tool_output(f"Starting summarization of {before_tokens:,} tokens...")
+        
+        # Store current message counts
+        before_done = len(self.coder.done_messages)
+        before_cur = len(self.coder.cur_messages)
+        
+        # Trigger summarization
+        self.coder.move_back_cur_messages(None)
+
+        self.coder.summarize_end()
+        
+        # Calculate results
+        after_tokens = self.coder.main_model.token_count(self.coder.done_messages)
+        reduction = 100 * (before_tokens - after_tokens) / before_tokens if before_tokens else 0
+        
+        self.io.tool_output(
+            f"Summarization complete:\n"
+            f"- Messages: {before_done + before_cur} → {len(self.coder.done_messages)}\n"
+            f"- Tokens: {before_tokens:,} → {after_tokens:,} ({reduction:.1f}% reduction)"
+        )
+
     def cmd_copy_context(self, args=None):
         """Copy the current chat context as markdown, suitable to paste into a web UI"""
 
