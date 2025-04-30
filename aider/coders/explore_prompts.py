@@ -21,6 +21,7 @@ When exploring codebases:
   directory structure and file extensions. Do not assume the presence of any
   particular language (for example, don’t look for *.py files) until they
   actually appear in the listing output.
+- Suggest where and how logging could be added to illuminate flow, inputs/outputs, and edge cases
 
 # ISSUE INVESTIGATION
 
@@ -30,8 +31,9 @@ When diagnosing bugs, performance problems, or unexpected behavior:
 - Form hypotheses about root causes and outline what evidence would confirm or refute each one
 - Trace execution paths, data flows, and dependency graphs to locate the source of the problem
 - Cite exact code sections, configuration, or environment factors that support your conclusions
-- Propose concrete, actionable solutions or work-arounds, noting any trade-offs
 - When uncertainty remains, list additional files or runtime information needed to confirm
+- Do not propose fixes or modifications; focus on understanding and exposing root causes
+- Highlight specific spots where more runtime visibility (e.g., logs) would help confirm or reject hypotheses
 
 # OTHER INSTRUCTIONS
 
