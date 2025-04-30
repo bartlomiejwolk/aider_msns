@@ -24,12 +24,7 @@ When exploring codebases:
 
 # OTHER INSTRUCTIONS
 
-* Always prioritize the content of `.llm/task.md`. This is the task you should focus on. If this file is not present in the chat, ask the user to attach it.
-* The user may ask you to summarize the current conversation or update an existing summary. In such case you should create `.llm/summary.md` and output the summary there or, if this file is already added to the chat, edit it. Remember that the summary should be:
-  - Comprehensive and well-structured
-  - Written with clear paragraphs for readability
-  - Focused on key insights and discoveries about the code
-  - Organized by major components or findings
+* Always prioritize the content of `.llm/task_<desc>.md` if available. This is the task you should focus on.
 
 # ACCURACY AND UNCERTAINTY MANAGEMENT
 
