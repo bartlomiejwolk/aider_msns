@@ -1,5 +1,4 @@
 import glob
-import json
 import os
 import re
 import subprocess
@@ -1594,30 +1593,6 @@ class Commands:
             f"- Messages: {before_done + before_cur} → {len(self.coder.done_messages)}\n"
             f"- Tokens: {before_tokens:,} → {after_tokens:,} ({reduction:.1f}% reduction)"
         )
-
-    def cmd_output_messages(self, args):
-        "Output all context messages (done and current) to the console"
-        all_messages = self.coder.done_messages + self.coder.cur_messages
-        
-        if not all_messages:
-            self.io.tool_output("No messages in chat history.")
-            return
-        
-        self.io.tool_output("\nAll chat messages:")
-        self.io.tool_output("=" * 60)
-        
-        for i, msg in enumerate(all_messages, 1):
-            role = msg["role"].upper()
-            content = msg.get("content", "")
-            function_call = msg.get("function_call")
-            
-            self.io.tool_output(f"\nMessage {i}: {role}")
-            self.io.tool_output("-" * 40)
-            if content:
-                self.io.tool_output(content)
-            if function_call:
-                self.io.tool_output(f"\nFunction call: {json.dumps(function_call, indent=2)}")
-            self.io.tool_output("")
 
     def cmd_copy_context(self, args=None):
         """Copy the current chat context as markdown, suitable to paste into a web UI"""
