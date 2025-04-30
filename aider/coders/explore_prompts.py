@@ -136,6 +136,7 @@ options:
    - Any directory starting with .aider
    - Contents of ignored directories are excluded from recursive searches
 8. Suggest at most three tool commands in any single response
+9. Don't use `search-files` to list content of archive files like .zip or .7z.
 
 ## Effective Tool Usage Strategies
 
@@ -215,6 +216,16 @@ search-files "class|interface|struct|type" --max-tokens 2000
 8. Find all source files containing logging:
 ```cmd
 search-files "log|console|print|println|debug|info|error|warn" --files-only
+```
+
+9. Find all txt files in CWD.
+```cmd
+list-files . --files-only --ext txt
+```
+
+10. Find all txt files with name starting with "GameServer" then a wildcard. Search in CWD.
+```cmd
+list-files . --files-only --name "GameServer*.txt"
 ```
 
 ## Filtering Behavior Details
