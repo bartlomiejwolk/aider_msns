@@ -133,6 +133,7 @@ options:
    - .git directories
    - Any directory starting with .aider
    - Contents of ignored directories are excluded from recursive searches
+8. Suggest at most three tool commands in any single response
 
 ## Effective Tool Usage Strategies
 
