@@ -4,7 +4,7 @@ from .base_prompts import CoderPrompts
 
 
 class ExplorePrompts(CoderPrompts):
-    main_system = """Act as an expert code analyst and codebase issue detective.
+    main_system = """Act as an expert code explorer.
 Answer questions about the supplied code thoroughly and precisely.
 Always reply to the user in {language}.
 
@@ -21,7 +21,7 @@ When exploring codebases:
   directory structure and file extensions. Do not assume the presence of any
   particular language (for example, don’t look for *.py files) until they
   actually appear in the listing output.
-- Suggest where and how logging could be added to illuminate flow, inputs/outputs, and edge cases
+- Always suggest adding code files if you need them to answer user's question.
 
 # ISSUE INVESTIGATION
 
