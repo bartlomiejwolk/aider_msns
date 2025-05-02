@@ -444,30 +444,37 @@ class InputOutput:
             self.tool_error(f"{filename}: {e}")
             return
 
-    def read_text(self, filename, silent=False):
+    # TODO: msns: Modified to fix encoding issues. Create PR to upstream.
+    def read_text(self, filename, silent=False, encodings=None):
         if is_image_file(filename):
             return self.read_image(filename)
 
+        encodings = encodings or [
+            'utf-8', 'utf-8-sig', 'latin-1', 'cp1252',
+            'utf-16-le', 'utf-16-be'
+        ]
+
+        # first, get the raw bytes
         try:
-            with open(str(filename), "r", encoding=self.encoding) as f:
-                return f.read()
-        except FileNotFoundError:
+            data = Path(filename).read_bytes()
+        except (FileNotFoundError, IsADirectoryError, OSError) as e:
             if not silent:
-                self.tool_error(f"{filename}: file not found error")
-            return
-        except IsADirectoryError:
-            if not silent:
-                self.tool_error(f"{filename}: is a directory")
-            return
-        except OSError as err:
-            if not silent:
-                self.tool_error(f"{filename}: unable to read: {err}")
-            return
-        except UnicodeError as e:
-            if not silent:
-                self.tool_error(f"{filename}: {e}")
-                self.tool_error("Use --encoding to set the unicode encoding.")
-            return
+                self.tool_error(f'{filename}: {e}')
+            return None
+
+        # now try to decode with each candidate
+        for enc in encodings:
+            try:
+                return data.decode(enc)
+            except UnicodeDecodeError:
+                continue
+
+        if not silent:
+            self.tool_error(
+                f'{filename}: unsupported encoding (tried {", ".join(encodings)})'
+            )
+        return None
+
 
     def write_text(self, filename, content, max_retries=5, initial_delay=0.1):
         """
