@@ -106,10 +106,11 @@ options:
 ### search-files
 ```
 usage: search-files.py [-h] [--files-only] [--max-tokens MAX_TOKENS] [--max-results MAX_RESULTS]
+                       [--ext EXT] [--fixed-strings] [--glob]
                        search_term [directory]
 
 positional arguments:
-  search_term           Search term, regex pattern, or file pattern (e.g. '*.py') to look for
+  search_term           Search term (regex pattern)\nUse --fixed-strings for exact matches\nUse --glob for file patterns
   directory             Directory to search (default: current directory)
 
 options:
@@ -119,7 +120,16 @@ options:
                         Maximum output size in tokens (default: 10000 ~40KB)
   --max-results MAX_RESULTS
                         Maximum number of matches to return per file (uses rg --max-count)
+  --ext EXT             Filter by file extensions (comma-separated, e.g. 'py,txt')
+  --fixed-strings       Treat search term as literal string instead of regex
+  --glob                Treat search term as a file pattern (glob) instead of regex
 ```
+
+Example patterns:
+- Literal string: `search-files --fixed-strings 'exact.phrase()'`
+- File pattern: `search-files --glob '*.cpp' src`
+- Regex: `search-files 'class\\s+\\w+'`
+- Combined: `search-files --ext py,js --fixed-strings 'TODO: '`
 
 ## Command Usage Guidelines
 
@@ -203,14 +213,19 @@ list-files . --name config --max-depth 2
 search-files "function|def|class|interface|struct|void|public" src
 ```
 
-6. Search for initialization code (file names only):
+6. Literal string search for exact match:
 ```cmd
-search-files "init|constructor|new|create|setup" --files-only
+search-files --fixed-strings "exact.phrase()"
 ```
 
-7. Search with limited output size:
+7. File pattern search for C++ source files:
 ```cmd
-search-files "class|interface|struct|type" --max-tokens 2000
+search-files --glob "*.cpp" src
+```
+
+8. Combined extension filter and literal search:
+```cmd
+search-files --ext py,js --fixed-strings "TODO: "
 ```
 
 8. Find all source files containing logging:
