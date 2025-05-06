@@ -18,36 +18,40 @@ def run_ripgrep_search(
     max_results: int = None,
     ext: str = None,
     fixed_strings: bool = False,
-    use_glob: bool = False
+    files_mode: bool = False,  # Changed from use_glob
+    globs: List[str] = None    # New parameter
 ) -> str:
     """Run ripgrep search with basic parameters."""
-    # Check directory exists first
     search_dir = Path(directory)
     if not search_dir.exists():
         raise ValueError(f"Directory does not exist: {directory}")
 
-    cmd = ["rg.exe", "--color=never", "--no-heading", "--with-filename", "--line-number", 
+    cmd = ["rg.exe", "--color=never", "--no-heading", "--with-filename", "--line-number",
            "--glob", "!.llm", "--glob", "!.git", "--glob", "!.aider*"]
-    
-    if files_only:
-        cmd.append("--files-with-matches")
-    if max_results:
-        cmd.extend(["--max-count", str(max_results)])
-    
-    # Add fixed-strings flag if requested
-    if fixed_strings:
-        cmd.append("--fixed-strings")
 
-    # Handle extension filters first
+    if files_mode:
+        cmd.append("--files")
+        
+    if globs:
+        for g in globs:
+            cmd.extend(["--glob", g])
+
+    # Handle normal search mode
+    if not files_mode:
+        if files_only:
+            cmd.append("--files-with-matches")
+        if fixed_strings:
+            cmd.append("--fixed-strings")
+        cmd.append(search_term)
+
+    # Handle extension filters and additional globs
     if ext:
         for extension in ext.split(','):
             cmd.extend(["--glob", f"*.{extension.strip()}"])
+    if max_results:
+        cmd.extend(["--max-count", str(max_results)])
 
-    # Handle search term type
-    if use_glob:
-        cmd.extend(["--glob", search_term, str(search_dir)])
-    else:
-        cmd.extend([search_term, str(search_dir)])
+    cmd.append(str(search_dir))
     
     try:
         result = subprocess.run(
@@ -60,7 +64,7 @@ def run_ripgrep_search(
         )
         return result.stdout
     except subprocess.CalledProcessError as e:
-        if e.returncode == 1:  # No matches found
+        if e.returncode == 1:
             return ""
         raise RuntimeError(f"ripgrep search failed: {e.stderr}")
 
@@ -108,7 +112,7 @@ def main():
   %(prog)s 'GetComponentName(' --fixed-strings
   
   # File pattern search for *.cpp files
-  %(prog)s '*.cpp' --glob src
+  %(prog)s --files --glob '*.cpp' src
   
   # Combined extension filter and regex search
   %(prog)s 'TODO: ' --ext py,js
@@ -116,7 +120,9 @@ def main():
     )
     parser.add_argument(
         "search_term",
-        help="Search term (regex pattern)\nUse --fixed-strings for exact matches\nUse --glob for file patterns"
+        nargs="?",
+        default=None,
+        help="Search term (regex pattern)\nUse --fixed-strings for exact matches"
     )
     parser.add_argument(
         "--fixed-strings",
@@ -152,9 +158,15 @@ def main():
         help="Filter by file extensions (comma-separated, e.g. 'py,txt')"
     )
     parser.add_argument(
-        "--glob",
+        "--files",
         action="store_true",
-        help="Treat search term as a file pattern (glob) instead of regex"
+        help="List files instead of searching content"
+    )
+    parser.add_argument(
+        "--glob",
+        type=str,
+        action="append",
+        help="File pattern to include/exclude (can be used multiple times)"
     )
     
     args = parser.parse_args()
@@ -165,13 +177,16 @@ def main():
         pass
     
     try:
+        # Handle missing search term when using --glob
+        search_term = args.search_term if args.search_term else "."
         output = run_ripgrep_search(
-            args.search_term,
+            search_term,
             args.directory,
             args.files_only,
             args.max_results,
             args.ext,
             args.fixed_strings,
+            args.files,
             args.glob
         )
         

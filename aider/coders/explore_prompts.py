@@ -106,11 +106,11 @@ options:
 ### search-files
 ```
 usage: search-files.py [-h] [--files-only] [--max-tokens MAX_TOKENS] [--max-results MAX_RESULTS]
-                       [--ext EXT] [--fixed-strings] [--glob]
+                       [--ext EXT] [--fixed-strings] [--files] [--glob GLOB]
                        search_term [directory]
 
 positional arguments:
-  search_term           Search term (regex pattern)\nUse --fixed-strings for exact matches\nUse --glob for file patterns
+  search_term           Search term (regex pattern or literal string)
   directory             Directory to search (default: current directory)
 
 options:
@@ -122,14 +122,19 @@ options:
                         Maximum number of matches to return per file (uses rg --max-count)
   --ext EXT             Filter by file extensions (comma-separated, e.g. 'py,txt')
   --fixed-strings       Treat search term as literal string instead of regex
-  --glob                Treat search term as a file pattern (glob) instead of regex
+  --files               List files instead of searching content
+  --glob GLOB           File pattern to include/exclude (can be used multiple times)
 ```
 
 Example patterns:
-- Literal string: `search-files --fixed-strings 'exact.phrase()'`
-- File pattern: `search-files --glob '*.cpp' src`
-- Regex: `search-files 'class\\s+\\w+'`
-- Combined: `search-files --ext py,js --fixed-strings 'TODO: '`
+- Literal string search: `search-files --fixed-strings 'exact.phrase()'`
+- File listing with glob: `search-files --files --glob '*.cpp' src`
+- Regex content search: `search-files 'class\\s+\\w+'`
+- Multiple glob patterns: `search-files --files --glob '*.cpp' --glob '!*Test.cpp'`
+- Combined extension+content: `search-files --ext py,js --fixed-strings 'TODO: '`
+- Case-insensitive search: `search-files -i 'todo'` (case-insensitive regex)
+- Whole word match: `search-files '\\bTODO\\b'` (regex word boundary)
+- File listing with extension: `search-files --files --ext cpp,h`
 
 ## Command Usage Guidelines
 
@@ -218,29 +223,34 @@ search-files "function|def|class|interface|struct|void|public" src
 search-files --fixed-strings "exact.phrase()"
 ```
 
-7. File pattern search for C++ source files:
+7. File listing with multiple patterns:
 ```cmd
-search-files --glob "*.cpp" src
+search-files --files --glob "*.cpp" --glob "!*Test.cpp" src
 ```
 
-8. Combined extension filter and literal search:
+8. Content search with extension filter:
 ```cmd
-search-files --ext py,js --fixed-strings "TODO: "
+search-files --ext py,js --fixed-strings "TODO: " src
 ```
 
-8. Find all source files containing logging:
+9. Find all test files containing assertions:
 ```cmd
-search-files "log|console|print|println|debug|info|error|warn" --files-only
+search-files --glob "*test*" --fixed-strings "assert("
 ```
 
-9. Find all txt files in CWD.
+10. Case-insensitive class search:
 ```cmd
-list-files . --files-only --ext txt
+search-files -i "class\\s+game_" src
 ```
 
-10. Find all txt files with name starting with "GameServer" then a wildcard. Search in CWD.
+11. Find non-test source files:
 ```cmd
-list-files . --files-only --name "GameServer*.txt"
+search-files --files --glob "*.cpp" --glob "!*Test*"
+```
+
+12. Search for hex values in code:
+```cmd
+search-files "0x[0-9a-fA-F]{4,}" src
 ```
 
 ## Filtering Behavior Details
