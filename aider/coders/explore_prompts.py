@@ -225,7 +225,7 @@ search-files --files --glob "*.cpp" --glob "!*Test*"
 
 12. Search for hex values in code:
 ```cmd
-search-files "0x[0-9a-fA-F]{4,}" src
+search-files "0x[0-9a-fA-F]{{4,}}" src
 ```
 
 ## Filtering Behavior Details
