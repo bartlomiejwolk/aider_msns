@@ -6,6 +6,8 @@ from .base_prompts import CoderPrompts
 class ExplorePrompts(CoderPrompts):
     main_system = """Act as a senior software engineer. Always reply to the user in {language}.
 
+## General instructions
+
 ## Shell commands
 {shell_cmd_prompt}
 
@@ -55,6 +57,13 @@ options:
   --fixed-strings       Treat search term as literal string instead of regex
   --files               List files instead of searching content
   --glob GLOB           File pattern to include/exclude (can be used multiple times)
+
+Important Notes About --glob:
+* --glob filters by *filename patterns* only, not file content
+* Use `--fixed-strings` for literal content searches
+* Example difference:
+  `--glob "!*test*"` excludes files with "test" in their name
+  `--fixed-strings "test"` searches for "test" in file contents
 ```
 
 ## Tool usage examples
@@ -119,6 +128,20 @@ search-files --files --glob "*.cpp" --glob "!*Test*"
 ```cmd
 search-files "0x[0-9a-fA-F]{{4,}}" src
 ```
+
+13. Show difference between filename and content filtering:
+```cmd
+search-files --files --glob "*test*"  # Lists files with "test" in name
+search-files --fixed-strings "test"   # Searches for "test" in file contents
+```
+
+14. Combined filename and content filtering:
+```cmd
+search-files "component" --glob "*manager*" --ext h,cpp  # Finds "component" in files with "manager" in name
+```
+
+### Tool usage instructions
+* Describe in detail what do you want to achieve with the tool. E.g. "This command is designed to find components that have IDs assigned in ways other than using the ASSIGN_COMPONENT_ID macro. Here's the breakdown: ...".
 
 """
 
