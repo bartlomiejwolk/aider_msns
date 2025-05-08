@@ -41,7 +41,7 @@ usage: search-files.py [-h] [--files-only] [--max-tokens MAX_TOKENS] [--max-resu
                        search_term [directory]
 
 positional arguments:
-  search_term           Search term (regex pattern or literal string)
+  search_term           Search term (regex pattern)
   directory             Directory to search (default: current directory)
 
 options:
