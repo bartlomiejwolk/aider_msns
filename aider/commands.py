@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import re
 import subprocess
@@ -151,6 +152,7 @@ class Commands:
             [
                 ("help", "Get help about using aider (usage, config, troubleshoot)."),
                 ("ask", "Ask questions about your code without making any changes."),
+                ("explore", "Explore the code base without making changes (same as ask mode)."),
                 ("code", "Ask for changes to your code (using the best edit format)."),
                 (
                     "architect",
@@ -1161,6 +1163,10 @@ class Commands:
         """Ask questions about the code base without editing any files. If no prompt provided, switches to ask mode."""  # noqa
         return self._generic_chat_command(args, "ask")
 
+    def cmd_explore(self, args):
+        """Explore the code base without editing any files. If no prompt provided, switches to explore mode."""  # noqa
+        return self._generic_chat_command(args, "explore")
+
     def cmd_code(self, args):
         """Ask for changes to your code. If no prompt provided, switches to code mode."""  # noqa
         return self._generic_chat_command(args, self.coder.main_model.edit_format)
@@ -1587,6 +1593,61 @@ class Commands:
         # Output announcements
         announcements = "\n".join(self.coder.get_announcements())
         self.io.tool_output(announcements)
+
+    def cmd_summarize(self, args):
+        "Trigger summarization of chat history to reduce token usage"
+        if not self.coder.done_messages and not self.coder.cur_messages:
+            self.io.tool_output("No chat history to summarize yet.")
+            return
+
+        # Calculate tokens before summarization
+        all_messages = self.coder.done_messages + self.coder.cur_messages
+        before_tokens = self.coder.main_model.token_count(all_messages)
+        
+        self.io.tool_output(f"Starting summarization of {before_tokens:,} tokens...")
+        
+        # Store current message counts
+        before_done = len(self.coder.done_messages)
+        before_cur = len(self.coder.cur_messages)
+        
+        # Trigger summarization
+        self.coder.move_back_cur_messages(None)
+
+        self.coder.summarize_end()
+        
+        # Calculate results
+        after_tokens = self.coder.main_model.token_count(self.coder.done_messages)
+        reduction = 100 * (before_tokens - after_tokens) / before_tokens if before_tokens else 0
+        
+        self.io.tool_output(
+            f"Summarization complete:\n"
+            f"- Messages: {before_done + before_cur} → {len(self.coder.done_messages)}\n"
+            f"- Tokens: {before_tokens:,} → {after_tokens:,} ({reduction:.1f}% reduction)"
+        )
+
+    def cmd_output_messages(self, args):
+        "Output all context messages (done and current) to the console"
+        all_messages = self.coder.done_messages + self.coder.cur_messages
+        
+        if not all_messages:
+            self.io.tool_output("No messages in chat history.")
+            return
+        
+        self.io.tool_output("\nAll chat messages:")
+        self.io.tool_output("=" * 60)
+        
+        for i, msg in enumerate(all_messages, 1):
+            role = msg["role"].upper()
+            content = msg.get("content", "")
+            function_call = msg.get("function_call")
+            
+            self.io.tool_output(f"\nMessage {i}: {role}")
+            self.io.tool_output("-" * 40)
+            if content:
+                self.io.tool_output(content)
+            if function_call:
+                self.io.tool_output(f"\nFunction call: {json.dumps(function_call, indent=2)}")
+            self.io.tool_output("")
 
     def cmd_copy_context(self, args=None):
         """Copy the current chat context as markdown, suitable to paste into a web UI"""
