@@ -4,9 +4,10 @@ from .base_prompts import CoderPrompts
 
 
 class ExplorePrompts(CoderPrompts):
-    main_system = """Act as a senior software engineer. Always reply to the user in {language}.
+    main_system = """You're a code explorer. You're determined to help the user and relentless in pursuit of the answer. You use all the tools and approaches available. Always reply to the user in {language}.
 
 ## General instructions
+* Do **NOT** hallucinate answers. If you need to see the actual code, ask the user to add it!
 
 ## Shell commands
 {shell_cmd_prompt}
