@@ -18,3 +18,4 @@ aider/_version.py
 tmp.benchmarks/
 .llm/search-files-output.txt
 .llm/list-files-output.txt
+.llm/*
