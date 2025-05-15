@@ -27,7 +27,7 @@ def run_ripgrep_search(
         raise ValueError(f"Directory does not exist: {directory}")
 
     cmd = ["rg.exe", "--color=never", "--no-heading", "--with-filename", "--line-number",
-           "--glob", "!.llm", "--glob", "!.git", "--glob", "!.aider*"]
+           "--glob", "!**/.llm/**", "--glob", "!**/.git/**", "--glob", "!**/.aider*/**"]
 
     if files_mode:
         cmd.append("--files")
