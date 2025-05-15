@@ -26,29 +26,39 @@ def run_ripgrep_search(
     if not search_dir.exists():
         raise ValueError(f"Directory does not exist: {directory}")
 
-    cmd = ["rg.exe", "--color=never", "--no-heading", "--with-filename", "--line-number",
-           "--glob", "!**/.llm/**", "--glob", "!**/.git/**", "--glob", "!**/.aider*/**"]
+    cmd = ["rg.exe", "--color=never", "--no-heading", "--with-filename", "--line-number"]
 
-    if files_mode:
-        cmd.append("--files")
+    # Apply extension filters first (as whitelist globs)
+    if ext:
+        for extension in ext.split(','):
+            cmd.extend(["--glob", f"*.{extension.strip()}"])
+
+    # Apply hardcoded ignore globs (these should override the whitelists)
+    default_ignores = [
+        "!**/.git", "!**/.git/**",      # Ignore .git directory and its contents
+        "!**/.llm", "!**/.llm/**",      # Ignore .llm directory and its contents
+        "!**/.aider*",                  # Ignore files/dirs starting with .aider
+        "!**/.aider*/**"                # Ignore contents of dirs starting with .aider
+    ]
+    for ignore_glob in default_ignores:
+        cmd.extend(["--glob", ignore_glob])
         
+    # Apply user-specified globs (can be include or exclude)
     if globs:
         for g in globs:
             cmd.extend(["--glob", g])
 
-    # Handle normal search mode
-    if not files_mode:
+    if files_mode:
+        cmd.append("--files")
+    # Handle normal search mode (search term is added here if not in files_mode)
+    else:
         if files_only:
             cmd.append("--files-with-matches")
         if fixed_strings:
             cmd.append("--fixed-strings")
         cmd.append(search_term)
-
-    # Handle extension filters and additional globs
-    if ext:
-        for extension in ext.split(','):
-            cmd.extend(["--glob", f"*.{extension.strip()}"])
-    if max_results:
+    
+    if max_results and not files_mode: # max-results is for content matches, not file listing
         cmd.extend(["--max-count", str(max_results)])
 
     cmd.append(str(search_dir))
