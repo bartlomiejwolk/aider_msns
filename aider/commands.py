@@ -1627,27 +1627,50 @@ class Commands:
 
     def cmd_output_messages(self, args):
         "Output all context messages (done and current) to the console"
+        OUTPUT_LENGTH_LIMIT = 140
+        HEADER_COLOR = "\033[1;33m"
+        RESET_COLOR = "\033[0m"
+        WARNING_COLOR = "\033[38;5;208m"
+        TOKEN_WARNING_THRESHOLD = 1000
+
         all_messages = self.coder.done_messages + self.coder.cur_messages
-        
+
         if not all_messages:
             self.io.tool_output("No messages in chat history.")
             return
-        
-        self.io.tool_output("\nAll chat messages:")
+
+        self.io.tool_output(f"\n{HEADER_COLOR}All chat messages:{RESET_COLOR}")
         self.io.tool_output("=" * 60)
-        
+
+        total_tokens = 0
         for i, msg in enumerate(all_messages, 1):
             role = msg["role"].upper()
             content = msg.get("content", "")
             function_call = msg.get("function_call")
-            
-            self.io.tool_output(f"\nMessage {i}: {role}")
-            self.io.tool_output("-" * 40)
+
+            # Calculate token count for this message
+            msg_tokens = self.coder.main_model.token_count([msg])
+            total_tokens += msg_tokens
+
+            # Color message header if tokens exceed threshold
+            msg_header = f"\n{i}: {role} | {msg_tokens} tokens"
+            if msg_tokens > TOKEN_WARNING_THRESHOLD:
+                msg_header = f"{WARNING_COLOR}{msg_header}{RESET_COLOR}"
+
+            self.io.tool_output(msg_header)
             if content:
-                self.io.tool_output(content)
+                # Remove empty lines and truncate long content
+                content_lines = [line for line in content.splitlines() if line.strip()]
+                truncated_content = "\n".join(content_lines)
+                if len(truncated_content) > OUTPUT_LENGTH_LIMIT:
+                    self.io.tool_output(truncated_content[:OUTPUT_LENGTH_LIMIT] + "...")
+                else:
+                    self.io.tool_output(truncated_content)
             if function_call:
                 self.io.tool_output(f"\nFunction call: {json.dumps(function_call, indent=2)}")
             self.io.tool_output("")
+
+        self.io.tool_output(f"\nTotal tokens: {total_tokens}")
 
     def cmd_copy_context(self, args=None):
         """Copy the current chat context as markdown, suitable to paste into a web UI"""
