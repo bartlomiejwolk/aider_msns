@@ -11,6 +11,7 @@ class ExplorePrompts(CoderPrompts):
 * Use available tools to explore the project.
 * Always reply to the user in {language}.
 * When providing code snippets, make them short. Use "..." to denote unimportant code. Add comments starting with "AI:" to explain to the user the code or proposed changes.
+* You can and should ask the user to instrumentalize the code for you via adding logs. This way you can get insight into the state of running application.
 
 ## Available tools
 
