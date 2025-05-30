@@ -2,7 +2,9 @@
 import argparse
 from pathlib import Path
 import sys
+import os
 import math
+import fnmatch
 from typing import List, Tuple, Union
 import datetime
 
@@ -15,18 +17,13 @@ def get_file_list(
     root_dir: Union[str, Path],
     recursive: bool = True,
     max_depth: int = None,
-    files_only: bool = False,
-    dirs_only: bool = False,
-    name_filter: str = None,
-    ext_filter: str = None
+    name_filter: str = None
 ) -> List[Path]:
     """Get list of files/dirs based on criteria."""
     root = Path(root_dir)
     if not root.exists():
         raise ValueError(f"Directory does not exist: {root_dir}")
     
-    if dirs_only and files_only:
-        raise ValueError("Cannot specify both --files-only and --dirs-only")
 
     paths = []
     if recursive:
@@ -42,55 +39,51 @@ def get_file_list(
         if isinstance(glob_pattern, list):
             for pattern in glob_pattern:
                 for path in root.glob(pattern):
-                    # Skip .git, .aider* and .llm directories and their contents
-                    if ('.git' in path.parts or 
-                        any(part.startswith('.aider') for part in path.parts) or
-                        '.llm' in path.parts):
-                        continue
-                    if dirs_only and not path.is_dir():
-                        continue
-                    if files_only and not path.is_file():
+                    # Skip hidden files and directories
+                    if any(part.startswith('.') for part in path.parts):
                         continue
                         
-                    # Apply name filter if specified
-                    if name_filter and not path.name.lower().startswith(name_filter.lower()) and name_filter not in path.name.lower():
-                        continue
+                    # Apply name filter if specified using wildcard and partial matching
+                    if name_filter:
+                        full_name = path.name.lower()
+                        name_without_ext = path.stem.lower()
+                        filter_lower = name_filter.lower()
+                        if ("*" in name_filter or "?" in name_filter):
+                            if not (fnmatch.fnmatch(full_name, filter_lower) or fnmatch.fnmatch(name_without_ext, filter_lower)):
+                                continue
+                        else:
+                            if filter_lower not in full_name and filter_lower not in name_without_ext:
+                                continue
                         
-                    # Apply extension filter if specified
-                    if ext_filter and path.is_file():
-                        if not path.suffix.lower().endswith(f".{ext_filter.lower()}"):
-                            continue
                             
                     paths.add(path.relative_to(root))
         else:
             for path in root.glob(glob_pattern):
-                # Skip .git and .aider* directories and their contents
-                if '.git' in path.parts or any(part.startswith('.aider') for part in path.parts):
-                    continue
-                if dirs_only and not path.is_dir():
-                    continue
-                if files_only and not path.is_file():
+                # Skip hidden files and directories
+                if any(part.startswith('.') for part in path.parts):
                     continue
                     
                 # Apply name filter if specified
                 if name_filter and not path.name.lower().startswith(name_filter.lower()) and name_filter not in path.name.lower():
                     continue
                     
-                # Apply extension filter if specified
-                if ext_filter and path.is_file():
-                    if not path.suffix.lower().endswith(f".{ext_filter.lower()}"):
-                        continue
                         
                 paths.add(path.relative_to(root))
     else:
         for path in root.iterdir():
-            # Skip .git, .aider* and .llm directories
-            if path.name == '.git' or path.name.startswith('.aider') or path.name == '.llm':
+            # Skip hidden files and directories
+            if any(part.startswith('.') for part in path.parts):
                 continue
-            if dirs_only and not path.is_dir():
-                continue
-            if files_only and not path.is_file():
-                continue
+            if name_filter:
+                full_name = path.name.lower()
+                name_without_ext = path.stem.lower()
+                filter_lower = name_filter.lower()
+                if ("*" in name_filter or "?" in name_filter):
+                    if not (fnmatch.fnmatch(full_name, filter_lower) or fnmatch.fnmatch(name_without_ext, filter_lower)):
+                        continue
+                else:
+                    if filter_lower not in full_name and filter_lower not in name_without_ext:
+                        continue
             paths.append(path.relative_to(root))
     
     return sorted(paths)
@@ -135,23 +128,17 @@ def format_output(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="List files and directories with various options"
+        usage="list-files [--directory DIRECTORY] [--name NAME] [--max-depth MAX_DEPTH] [--max-tokens MAX_TOKENS]",
+        description="List files and directories (listing is recursive by default)",
+        add_help=False
     )
+    parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
+                        help='Show this help message and exit')
     parser.add_argument(
-        "directory",
-        nargs="?",
+        "--directory",
+        type=str,
         default=".",
-        help="Directory to list (default: current directory)"
-    )
-    parser.add_argument(
-        "--files-only",
-        action="store_true",
-        help="List only files (exclude directories)"
-    )
-    parser.add_argument(
-        "--dirs-only",
-        action="store_true",
-        help="List only directories (exclude files)"
+        help="Directory to list (default: current working directory)"
     )
     parser.add_argument(
         "--name",
@@ -159,26 +146,6 @@ def main():
         default=None,
         help="Filter by name (supports wildcards like *.py)"
     )
-    parser.add_argument(
-        "--ext",
-        type=str,
-        default=None,
-        help="Filter by file extension (e.g. 'py' or 'txt')"
-    )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--recursive",
-        dest="recursive",
-        action="store_true",
-        help="Enable recursive directory traversal (default: enabled)"
-    )
-    group.add_argument(
-        "--no-recursive",
-        dest="recursive",
-        action="store_false",
-        help="Disable recursive directory traversal"
-    )
-    parser.set_defaults(recursive=True)
     parser.add_argument(
         "--max-depth",
         type=int,
@@ -201,12 +168,8 @@ def main():
     try:
         paths = get_file_list(
             args.directory,
-            recursive=args.recursive,
             max_depth=args.max_depth,
-            files_only=args.files_only,
-            dirs_only=args.dirs_only,
-            name_filter=args.name,
-            ext_filter=args.ext
+            name_filter=args.name
         )
         
         # Convert paths to safe UTF-8 strings
@@ -214,20 +177,23 @@ def main():
         output, truncated = format_output(
             safe_paths,
             max_tokens=args.max_tokens,
-            root_dir=args.directory,
-            files_only=args.files_only,
-            dirs_only=args.dirs_only
+            root_dir=args.directory
         )
+        full_output, _ = format_output(safe_paths, max_tokens=10**9, root_dir=args.directory)
         
-        # Save output to .llm.context directory (overwrite existing)
+        # Save output to .llm directory (overwrite existing)
         output_dir = Path.cwd() / ".llm"
         output_dir.mkdir(exist_ok=True)
-        output_file = output_dir / "list-files-output.md"
-        command_executed = " ".join(sys.argv)
+        output_file = output_dir / "list-files-output.txt"
         timestamp = datetime.datetime.now().isoformat()
-        header = f"\n\n## List results appended on {timestamp}\n**Command:** {command_executed}\n\n"
+        cmd = os.path.basename(sys.argv[0])
+        if len(sys.argv) > 1:
+            command_executed = f"{cmd} " + " ".join(sys.argv[1:])
+        else:
+            command_executed = cmd
+        header = f"SEARCH | {timestamp} | {command_executed}\n\n"
         with open(output_file, "a", encoding="utf-8", errors="replace") as f:
-            f.write(header + output)
+            f.write(header + full_output + "\n\n")
             
         # Also print to stdout for immediate viewing
         print(output)
