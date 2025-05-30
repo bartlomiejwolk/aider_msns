@@ -2,6 +2,7 @@
 import argparse
 import subprocess
 import sys
+import os
 from pathlib import Path
 import math
 from typing import List, Tuple
@@ -14,12 +15,7 @@ TOKEN_CHAR_COUNT = 4  # Approx. 1 token per 4 characters
 def run_ripgrep_search(
     search_term: str,
     directory: str = ".",
-    files_only: bool = False,
-    max_results: int = None,
-    ext: str = None,
-    fixed_strings: bool = False,
-    files_mode: bool = False,  # Changed from use_glob
-    globs: List[str] = None    # New parameter
+    fixed_strings: bool = False
 ) -> str:
     """Run ripgrep search with basic parameters."""
     search_dir = Path(directory)
@@ -28,38 +24,19 @@ def run_ripgrep_search(
 
     cmd = ["rg.exe", "--color=never", "--no-heading", "--with-filename", "--line-number"]
 
-    # Apply extension filters first (as whitelist globs)
-    if ext:
-        for extension in ext.split(','):
-            cmd.extend(["--glob", f"*.{extension.strip()}"])
 
     # Apply hardcoded ignore globs (these should override the whitelists)
     default_ignores = [
-        "!**/.git", "!**/.git/**",      # Ignore .git directory and its contents
-        "!**/.llm", "!**/.llm/**",      # Ignore .llm directory and its contents
-        "!**/.aider*",                  # Ignore files/dirs starting with .aider
-        "!**/.aider*/**"                # Ignore contents of dirs starting with .aider
+        "!**/.*",                     # Ignore all hidden files and directories
     ]
     for ignore_glob in default_ignores:
         cmd.extend(["--glob", ignore_glob])
         
-    # Apply user-specified globs (can be include or exclude)
-    if globs:
-        for g in globs:
-            cmd.extend(["--glob", g])
 
-    if files_mode:
-        cmd.append("--files")
-    # Handle normal search mode (search term is added here if not in files_mode)
-    else:
-        if files_only:
-            cmd.append("--files-with-matches")
-        if fixed_strings:
-            cmd.append("--fixed-strings")
-        cmd.append(search_term)
+    if fixed_strings:
+        cmd.append("--fixed-strings")
+    cmd.append(search_term)
     
-    if max_results and not files_mode: # max-results is for content matches, not file listing
-        cmd.extend(["--max-count", str(max_results)])
 
     cmd.append(str(search_dir))
     
@@ -80,8 +57,7 @@ def run_ripgrep_search(
 
 def format_output(
     output: str,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    files_only: bool = False
+    max_tokens: int = DEFAULT_MAX_TOKENS
 ) -> Tuple[str, bool]:
     """Format output respecting token limit."""
     if output is None:
@@ -106,32 +82,25 @@ def format_output(
     
     result = "\n".join(formatted)
     if truncated:
-        result += f"\n\n[TRUNCATED] {remaining_count} more {'matches' if not files_only else 'files'} not shown (max tokens: {max_tokens})"
+        result += f"\n\n[TRUNCATED] {remaining_count} more matches not shown (max tokens: {max_tokens})"
     
     return result, truncated
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Search files using ripgrep (supports both regex and file patterns)",
-        formatter_class=argparse.RawTextHelpFormatter,
-        epilog="""Examples:
-  # Regex search for Python class definitions
-  %(prog)s 'class\\s+\\w+' src
-  
-  # Literal string search with fixed-strings
-  %(prog)s 'GetComponentName(' --fixed-strings
-  
-  # File pattern search for *.cpp files
-  %(prog)s --files --glob '*.cpp' src
-  
-  # Combined extension filter and regex search
-  %(prog)s 'TODO: ' --ext py,js
-"""
+        usage="search-files [--directory DIRECTORY] [--fixed-strings] [--max-tokens MAX_TOKENS] search_term",
+        description="Search files using ripgrep",
+        add_help=False
+    )
+    parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
+                        help='Show this help message and exit')
+    parser.add_argument(
+        "--directory",
+        default=".",
+        help="Directory to search (default: current directory)"
     )
     parser.add_argument(
         "search_term",
-        nargs="?",
-        default=None,
         help="Search term (regex pattern)\nUse --fixed-strings for exact matches"
     )
     parser.add_argument(
@@ -140,43 +109,10 @@ def main():
         help="Treat search term as literal string instead of regex"
     )
     parser.add_argument(
-        "directory",
-        nargs="?",
-        default=".",
-        help="Directory to search (default: current directory)"
-    )
-    parser.add_argument(
-        "--files-only",
-        action="store_true",
-        help="Only show files containing matches, not the matches themselves"
-    )
-    parser.add_argument(
         "--max-tokens",
         type=int,
         default=DEFAULT_MAX_TOKENS,
         help=f"Maximum output size in tokens (default: {DEFAULT_MAX_TOKENS} ~40KB)"
-    )
-    parser.add_argument(
-        "--max-results",
-        type=int,
-        help="Maximum number of matches to return per file (uses rg --max-count)"
-    )
-    parser.add_argument(
-        "--ext",
-        type=str,
-        default=None,
-        help="Filter by file extensions (comma-separated, e.g. 'py,txt')"
-    )
-    parser.add_argument(
-        "--files",
-        action="store_true",
-        help="List files instead of searching content"
-    )
-    parser.add_argument(
-        "--glob",
-        type=str,
-        action="append",
-        help="File pattern to include/exclude (can be used multiple times)"
     )
     
     args = parser.parse_args()
@@ -187,17 +123,11 @@ def main():
         pass
     
     try:
-        # Handle missing search term when using --glob
-        search_term = args.search_term if args.search_term else "."
+        search_term = args.search_term
         output = run_ripgrep_search(
             search_term,
             args.directory,
-            args.files_only,
-            args.max_results,
-            args.ext,
-            args.fixed_strings,
-            args.files,
-            args.glob
+            args.fixed_strings
         )
         
         if output is None:
@@ -206,17 +136,23 @@ def main():
             
         # Ensure output is properly encoded before formatting
         safe_output = output.encode('utf-8', errors='replace').decode('utf-8')
-        formatted_output, truncated = format_output(safe_output, args.max_tokens, args.files_only)
+        # Format the complete output without token limits, capturing all results like the list-files script does
+        formatted_output, truncated = format_output(safe_output, args.max_tokens)
         
-        # Save output to .llm.context directory (overwrite existing)
+        full_output, _ = format_output(safe_output, max_tokens=10**9)
         output_dir = Path.cwd() / ".llm"
         output_dir.mkdir(exist_ok=True)
-        output_file = output_dir / "search-files-output.md"
-        command_executed = " ".join(sys.argv)
+        output_file = output_dir / "search-files-output.txt"
+        cmd = os.path.basename(sys.argv[0])
+        if len(sys.argv) > 1:
+            command_executed = f"{cmd} " + " ".join(sys.argv[1:])
+        else:
+            command_executed = cmd
+        # Generate timestamp and header for output file, ensuring the format matches that of list-files
         timestamp = datetime.datetime.now().isoformat()
-        header = f"\n\n## Search results appended on {timestamp}\n**Command:** {command_executed}\n\n"
+        header = f"SEARCH | {timestamp} | {command_executed}\n\n"
         with open(output_file, "a", encoding="utf-8", errors="replace") as f:
-            f.write(header + formatted_output)
+            f.write(header + full_output + "\n\n")
             
         # Print to stdout only if there is output
         if formatted_output.strip():
