@@ -148,9 +148,9 @@ def main():
             command_executed = f"{cmd} " + " ".join(sys.argv[1:])
         else:
             command_executed = cmd
-        # Generate timestamp and header for output file, ensuring the format matches that of list-files
+        # Generate timestamp and header for output file, using new format:
         timestamp = datetime.datetime.now().isoformat()
-        header = f"SEARCH | {timestamp} | {command_executed}\n\n"
+        header = f"{timestamp}\nSEARCH_COMMAND: {command_executed}\n\n"
         with open(output_file, "a", encoding="utf-8", errors="replace") as f:
             f.write(header + full_output + "\n\n")
             
