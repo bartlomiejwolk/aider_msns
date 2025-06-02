@@ -144,7 +144,7 @@ def main():
         "--name",
         type=str,
         default=None,
-        help="Filter by name (supports wildcards like *.py)"
+        help="Filter by name (supports wildcards like \"*.py\"). Wrap the filter in double quotes if it contains spaces."
     )
     parser.add_argument(
         "--max-depth",

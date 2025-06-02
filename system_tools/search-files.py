@@ -101,7 +101,7 @@ def main():
     )
     parser.add_argument(
         "search_term",
-        help="Search term (regex pattern)\nUse --fixed-strings for exact matches"
+        help="Search term (regex pattern, wrap in double quotes if it contains spaces)\nUse --fixed-strings for exact matches"
     )
     parser.add_argument(
         "--fixed-strings",
